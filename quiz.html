@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYLE Daily Drill</title>
+<script src="data/manifest.js"></script>
+<script>
+  // Pick which day's data file to load, before the rest of the page parses:
+  // 1. an explicit ?day=N in the URL, if it exists in the manifest
+  // 2. otherwise, the first manifest day with no entry yet in nyle-daily-history
+  // 3. otherwise (all days done), the most recent day, so re-opening the drill
+  //    after finishing everything doesn't error out
+  (function(){
+    const params = new URLSearchParams(location.search);
+    const requested = parseInt(params.get('day'), 10);
+    let day = DAY_MANIFEST.some(d => d.day === requested) ? requested : null;
+    if(!day){
+      let history = [];
+      try{ history = JSON.parse(localStorage.getItem('nyle-daily-history') || '[]'); }catch(e){}
+      const doneDays = new Set(history.map(h => h.day));
+      const next = DAY_MANIFEST.find(d => !doneDays.has(d.day));
+      day = next ? next.day : DAY_MANIFEST[DAY_MANIFEST.length - 1].day;
+    }
+    window.CURRENT_DAY = day;
+    const entry = DAY_MANIFEST.find(d => d.day === day);
+    document.write('<script src="' + entry.file + '"><' + '/script>');
+  })();
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --ink:#1c1e1b; --paper:#f6f4ee; --card:#fffdf8; --rule:#c9c4b4; --rule-soft:#e3dfd2;
+    --brass:#8a6d3b; --brass-dark:#6b5228;
+    --correct:#2f5e3f; --correct-bg:#e7f0e6;
+    --wrong:#8c2f2f; --wrong-bg:#f5e6e3; --muted:#6b6b62;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Source Serif 4', Georgia, serif; padding:28px 14px 70px; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:720px;margin:0 auto;}
+  .topnav{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:22px; font-family:'IBM Plex Mono', monospace; font-size:11px;}
+  .topnav a{color:var(--muted); text-decoration:none; border:1px solid var(--rule); padding:6px 11px; border-radius:2px; letter-spacing:0.02em;}
+  .topnav a:hover, .topnav a.active{border-color:var(--brass); color:var(--brass-dark);}
+  header.masthead{text-align:center; border-bottom:3px double var(--ink); padding-bottom:16px; margin-bottom:22px;}
+  .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--brass-dark); margin-bottom:6px;}
+  h1{font-size:24px; font-weight:700; margin:0 0 6px;}
+  .sub{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);}
+  .day-picker{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--muted); margin-top:10px;}
+  .day-picker a{color:var(--muted); text-decoration:none; border-bottom:1px dotted var(--rule); margin:0 4px;}
+  .day-picker a.active{color:var(--brass-dark); border-bottom-color:var(--brass);}
+  .history-banner{
+    background:var(--card); border:1px solid var(--rule); border-left:4px solid var(--brass);
+    padding:12px 14px; margin-bottom:20px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); display:none;
+  }
+  .history-banner.show{display:block;}
+  .progress-row{display:flex; align-items:center; gap:12px; margin-bottom:18px; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted);}
+  .progress-track{flex:1; height:3px; background:var(--rule-soft); position:relative;}
+  .progress-fill{height:100%; background:var(--brass); transition:width .3s ease;}
+  .card{background:var(--card); border:1px solid var(--rule); padding:24px 22px 18px; margin-bottom:16px;}
+  .qnum-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; flex-wrap:wrap; gap:6px;}
+  .qnum{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--brass-dark); font-weight:600;}
+  .subject-tag{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); border:1px solid var(--rule); padding:3px 7px;}
+  .stem{font-size:15.5px; line-height:1.55; margin-bottom:18px; white-space:pre-line;}
+  .choices{display:flex; flex-direction:column; gap:8px;}
+  .choice{display:flex; align-items:flex-start; gap:11px; padding:11px 13px; border:1px solid var(--rule); background:transparent; cursor:pointer; text-align:left; font-family:'Source Serif 4', Georgia, serif; font-size:14.5px; line-height:1.4; color:var(--ink); transition:background .15s, border-color .15s;}
+  .choice:hover:not(:disabled){border-color:var(--brass); background:#fbf9f2;}
+  .choice:disabled{cursor:default;}
+  .choice .letter{font-family:'IBM Plex Mono', monospace; font-size:12.5px; font-weight:600; color:var(--brass-dark); flex-shrink:0; width:15px;}
+  .choice.selected-correct{border-color:var(--correct); background:var(--correct-bg);}
+  .choice.selected-correct .letter{color:var(--correct);}
+  .choice.selected-wrong{border-color:var(--wrong); background:var(--wrong-bg);}
+  .choice.selected-wrong .letter{color:var(--wrong);}
+  .choice.reveal-correct{border-color:var(--correct); border-style:dashed;}
+  .choice.dimmed{opacity:0.4;}
+  .feedback{margin-top:14px; padding-top:12px; border-top:1px solid var(--rule-soft); display:none; align-items:center; justify-content:space-between; font-family:'IBM Plex Mono', monospace; font-size:11.5px;}
+  .feedback.show{display:flex;}
+  .verdict{font-weight:600;}
+  .verdict.correct{color:var(--correct);}
+  .verdict.wrong{color:var(--wrong);}
+  .next-btn{font-family:'IBM Plex Mono', monospace; font-size:11.5px; text-transform:uppercase; background:var(--ink); color:var(--paper); border:none; padding:8px 14px; cursor:pointer;}
+  .next-btn:hover{background:var(--brass-dark);}
+  .summary{display:none;}
+  .summary.show{display:block;}
+  .score-hero{text-align:center; padding:32px 18px; border:1px solid var(--rule); background:var(--card); margin-bottom:20px;}
+  .score-num{font-family:'IBM Plex Mono', monospace; font-size:46px; font-weight:600; line-height:1;}
+  .score-label{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
+  .subj-breakdown{margin-top:20px;}
+  table.breakdown{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.breakdown th{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); text-align:left; padding:7px 8px; border-bottom:1px solid var(--ink);}
+  table.breakdown td{padding:7px 8px; border-bottom:1px solid var(--rule-soft);}
+  .save-status{text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); margin-top:14px;}
+  footer.note{text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--muted); margin-top:24px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topnav">
+    <a href="index.html">Home</a>
+    <a href="plan.html">Study Plan</a>
+    <a href="topic-map.html">Topic Map</a>
+    <a href="cplr-guide.html">CPLR Guide</a>
+    <a href="quiz.html" class="active">Drill</a>
+  </div>
+  <header class="masthead">
+    <div class="eyebrow">NYLE Prep · Daily Drill</div>
+    <h1 id="drill-title">Loading…</h1>
+    <div class="sub" id="drill-sub"></div>
+    <div class="day-picker" id="day-picker"></div>
+  </header>
+
+  <div class="history-banner" id="history-banner"></div>
+
+  <div class="progress-row">
+    <span id="progress-label">Q1 / 50</span>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:2%"></div></div>
+    <span id="score-live">0 correct</span>
+  </div>
+  <div id="save-indicator" style="text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:14px;"></div>
+
+  <div id="quiz-area"></div>
+
+  <div class="summary" id="summary">
+    <div class="score-hero">
+      <div class="score-num" id="final-score">0/50</div>
+      <div class="score-label" id="final-score-label">cold, closed-book</div>
+    </div>
+    <div class="subj-breakdown">
+      <table class="breakdown">
+        <thead><tr><th>Subject</th><th>Score</th><th>%</th></tr></thead>
+        <tbody id="breakdown-body"></tbody>
+      </table>
+    </div>
+    <div class="save-status" id="save-status">Saving...</div>
+  </div>
+
+  <footer class="note">Results save automatically for cross-day tracking.<br>Weighted by topic-branch count per subject (see study plan doc).</footer>
+</div>
+
+<script>
+const LETTERS = ['a','b','c','d'];
+let current = 0;
+let userAnswers = new Array(QUESTIONS.length).fill(null);
+
+const PROGRESS_KEY = 'nyle-day' + CURRENT_DAY + '-progress';
+const HISTORY_KEY = 'nyle-daily-history';
+
+function renderHeader(){
+  document.getElementById('drill-title').textContent = DAY_META.label;
+  document.getElementById('drill-sub').textContent = DAY_META.sub;
+  document.getElementById('final-score-label').textContent = DAY_META.label + ' — ' + DAY_META.sub;
+  document.title = 'NYLE Daily Drill — ' + DAY_META.label;
+  const picker = document.getElementById('day-picker');
+  picker.innerHTML = DAY_MANIFEST.map(d =>
+    `<a href="quiz.html?day=${d.day}" class="${d.day===CURRENT_DAY?'active':''}">Day ${d.day}</a>`
+  ).join(' · ');
+}
+
+function saveProgress(){
+  const indicator = document.getElementById('save-indicator');
+  try{
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({current, userAnswers}));
+    indicator.textContent = '✓ progress saved to this browser';
+    setTimeout(()=>{ if(indicator.textContent==='✓ progress saved to this browser') indicator.textContent=''; }, 1500);
+  }catch(e){
+    indicator.textContent = '⚠ save failed — ' + (e && e.message ? e.message : 'storage error');
+  }
+}
+
+function loadProgress(){
+  try{
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if(raw){
+      const saved = JSON.parse(raw);
+      if(saved.userAnswers && saved.userAnswers.length === QUESTIONS.length){
+        userAnswers = saved.userAnswers;
+        current = saved.current;
+        const answeredCount = userAnswers.filter(a=>a!==null).length;
+        if(answeredCount > 0){
+          const banner = document.getElementById('history-banner');
+          banner.textContent = `Resumed — ${answeredCount} of ${QUESTIONS.length} already answered.`;
+          banner.classList.add('show');
+        }
+      }
+    }
+  }catch(e){ /* no saved progress, start fresh */ }
+}
+
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if(raw){
+      const history = JSON.parse(raw);
+      if(history.length > 0){
+        const banner = document.getElementById('history-banner');
+        const lines = history.map(h => `Day ${h.day} (${h.date}): ${h.score}/${h.total}`).join(' · ');
+        banner.textContent = 'Previous days — ' + lines;
+        banner.classList.add('show');
+      }
+    }
+  }catch(e){
+    // no history yet, fine
+  }
+}
+
+function saveResult(score){
+  const bySubject = {};
+  QUESTIONS.forEach((q,i)=>{
+    if(!bySubject[q.subject]) bySubject[q.subject] = {correct:0, total:0};
+    bySubject[q.subject].total++;
+    if(userAnswers[i] === q.answer) bySubject[q.subject].correct++;
+  });
+  const dayResult = {
+    day: CURRENT_DAY,
+    date: new Date().toISOString().split('T')[0],
+    score: score,
+    total: QUESTIONS.length,
+    bySubject: bySubject,
+    errors: QUESTIONS.map((q,i)=>({subject:q.subject, topic:q.topic, wrong: userAnswers[i] !== q.answer})).filter(e=>e.wrong)
+  };
+  try{
+    let history = [];
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if(raw) history = JSON.parse(raw);
+    history = history.filter(h => h.day !== CURRENT_DAY); // overwrite if re-run
+    history.push(dayResult);
+    history.sort((a,b)=>a.day-b.day);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    document.getElementById('save-status').textContent = 'Saved to this browser — will show up next time you open the quiz here.';
+  }catch(e){
+    document.getElementById('save-status').textContent = 'Could not save (storage unavailable) — screenshot this page to keep your results.';
+  }
+}
+
+function renderQuestion(){
+  const q = QUESTIONS[current];
+  const area = document.getElementById('quiz-area');
+  const answered = userAnswers[current] !== null;
+  let choicesHtml = '';
+  q.choices.forEach((c,i)=>{
+    let cls = 'choice';
+    if(answered){
+      if(i === userAnswers[current] && i === q.answer) cls += ' selected-correct';
+      else if(i === userAnswers[current] && i !== q.answer) cls += ' selected-wrong';
+      else if(i === q.answer) cls += ' reveal-correct';
+      else cls += ' dimmed';
+    }
+    choicesHtml += `<button class="${cls}" ${answered?'disabled':''} onclick="selectAnswer(${i})"><span class="letter">${LETTERS[i]})</span><span>${c}</span></button>`;
+  });
+  const isLast = current === QUESTIONS.length - 1;
+  const feedbackHtml = answered ? `
+    <div class="feedback show">
+      <span class="verdict ${userAnswers[current]===q.answer?'correct':'wrong'}">${userAnswers[current]===q.answer ? 'Correct' : 'Incorrect'}</span>
+      <button class="next-btn" onclick="${isLast ? 'finishQuiz()' : 'nextQuestion()'}">${isLast ? 'See results →' : 'Next →'}</button>
+    </div>` : '';
+  area.innerHTML = `
+    <div class="card">
+      <div class="qnum-row"><span class="qnum">Q${current+1} / ${QUESTIONS.length}</span><span class="subject-tag">${q.subject}</span></div>
+      <div class="stem">${q.stem}</div>
+      <div class="choices">${choicesHtml}</div>
+      ${feedbackHtml}
+    </div>`;
+  document.getElementById('progress-label').textContent = `Q${current+1} / ${QUESTIONS.length}`;
+  document.getElementById('progress-fill').style.width = ((current+1)/QUESTIONS.length*100)+'%';
+  const correctSoFar = userAnswers.filter((a,i)=>a===QUESTIONS[i].answer).length;
+  document.getElementById('score-live').textContent = correctSoFar + ' correct';
+}
+
+function selectAnswer(i){
+  if(userAnswers[current] !== null) return;
+  userAnswers[current] = i;
+  renderQuestion();
+  saveProgress();
+}
+function nextQuestion(){
+  if(current < QUESTIONS.length - 1){ current++; renderQuestion(); saveProgress(); }
+}
+
+async function finishQuiz(){
+  document.getElementById('quiz-area').style.display = 'none';
+  document.querySelector('.progress-row').style.display = 'none';
+  const summary = document.getElementById('summary');
+  summary.classList.add('show');
+  const correct = userAnswers.filter((a,i)=>a===QUESTIONS[i].answer).length;
+  document.getElementById('final-score').textContent = correct + '/' + QUESTIONS.length;
+
+  const bySubject = {};
+  QUESTIONS.forEach((q,i)=>{
+    if(!bySubject[q.subject]) bySubject[q.subject] = {correct:0,total:0};
+    bySubject[q.subject].total++;
+    if(userAnswers[i]===q.answer) bySubject[q.subject].correct++;
+  });
+  const tbody = document.getElementById('breakdown-body');
+  tbody.innerHTML = '';
+  Object.keys(bySubject).forEach(subj=>{
+    const s = bySubject[subj];
+    const pct = Math.round(s.correct/s.total*100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${subj}</td><td>${s.correct}/${s.total}</td><td>${pct}%</td>`;
+    tbody.appendChild(tr);
+  });
+
+  saveResult(correct);
+  try{ localStorage.removeItem(PROGRESS_KEY); }catch(e){ /* fine if already gone */ }
+}
+
+function init(){
+  renderHeader();
+  loadHistory();
+  loadProgress();
+  renderQuestion();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYLE Full Topic Map</title>
+<script src="data/status.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#1c1e1b; --paper:#f6f4ee; --card:#fffdf8;
+    --rule:#c9c4b4; --brass:#8a6d3b;
+    --done:#2f5e3f; --done-bg:#e7f0e6;
+    --partial:#a3791f; --partial-bg:#f5edd9;
+    --todo:#8c2f2f; --todo-bg:#f5e6e3;
+    --muted:#6b6b62;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Source Serif 4', Georgia, serif;
+    padding:22px 12px 60px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  header{text-align:center; margin-bottom:16px;}
+  .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--brass); margin-bottom:4px;}
+  h1{font-size:21px; margin:0 0 4px; font-weight:700;}
+  .sub{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--muted); line-height:1.6;}
+
+  .legend{
+    display:flex; justify-content:center; gap:14px; flex-wrap:wrap;
+    margin:14px 0 20px; font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--muted);
+  }
+  .legend span{display:flex; align-items:center; gap:4px;}
+  .dot{width:7px;height:7px; border-radius:50%; display:inline-block;}
+
+  .controls{
+    display:flex; justify-content:center; gap:8px; margin-bottom:18px;
+    font-family:'IBM Plex Mono', monospace; font-size:10px;
+  }
+  .ctrl-btn{
+    background:transparent; border:1px solid var(--rule); color:var(--muted);
+    padding:5px 10px; cursor:pointer; letter-spacing:0.04em;
+  }
+  .ctrl-btn:hover{border-color:var(--brass); color:var(--brass);}
+
+  .topnav{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:22px; font-family:'IBM Plex Mono', monospace; font-size:11px;}
+  .topnav a{color:var(--muted); text-decoration:none; border:1px solid var(--rule); padding:6px 11px; border-radius:2px; letter-spacing:0.02em;}
+  .topnav a:hover, .topnav a.active{border-color:var(--brass); color:var(--brass-dark);}
+
+  .subj-card{
+    background:var(--card); border:1px solid var(--rule); border-left-width:5px;
+    border-radius:2px; margin-bottom:10px; overflow:hidden;
+  }
+  .subj-card.status-done{border-left-color:var(--done);}
+  .subj-card.status-partial{border-left-color:var(--partial);}
+  .subj-card.status-todo{border-left-color:var(--todo);}
+
+  .subj-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 14px; cursor:pointer; gap:10px;
+  }
+  .subj-head:hover{background:#fbf9f2;}
+  .subj-title-row{display:flex; flex-direction:column; gap:4px;}
+  .subj-name{font-size:15px; font-weight:600; line-height:1.25;}
+  .subj-meta{display:flex; gap:6px; align-items:center;}
+  .status-pill{
+    font-family:'IBM Plex Mono', monospace; font-size:8.5px; padding:2px 7px;
+    border-radius:8px; letter-spacing:0.03em;
+  }
+  .status-done .status-pill{background:var(--done-bg); color:var(--done);}
+  .status-partial .status-pill{background:var(--partial-bg); color:var(--partial);}
+  .status-todo .status-pill{background:var(--todo-bg); color:var(--todo);}
+  .topic-count{font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--muted);}
+
+  .chevron{
+    font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--brass);
+    transition:transform .2s; flex-shrink:0;
+  }
+  .subj-card.open .chevron{transform:rotate(90deg);}
+
+  .subj-body{
+    max-height:0; overflow:hidden; transition:max-height .25s ease;
+    border-top:1px solid var(--rule-soft, #e3dfd2);
+  }
+  .subj-card.open .subj-body{border-top:1px solid var(--rule);}
+
+  .topic-list{
+    padding:12px 14px 14px 18px;
+    display:flex; flex-direction:column; gap:9px;
+  }
+  .topic-item{
+    display:flex; gap:8px; align-items:baseline;
+  }
+  .topic-marker{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--brass);
+    flex-shrink:0; width:16px;
+  }
+  .topic-text{
+    font-size:13.5px; line-height:1.45;
+  }
+  .topic-text .sub-detail{
+    display:block; font-size:11.5px; color:var(--muted); margin-top:2px; font-style:italic;
+  }
+
+  footer{
+    text-align:center; font-family:'IBM Plex Mono', monospace; font-size:9.5px;
+    color:var(--muted); margin-top:26px; line-height:1.7;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topnav">
+    <a href="index.html">Home</a>
+    <a href="plan.html">Study Plan</a>
+    <a href="topic-map.html" class="active">Topic Map</a>
+    <a href="cplr-guide.html">CPLR Guide</a>
+    <a href="quiz.html">Drill</a>
+  </div>
+  
+  <header>
+    <div class="eyebrow">NYLE Prep · Full Journey</div>
+    <h1>All 12 Subjects — Topic Map</h1>
+    <div class="sub">Sourced from BOLE's official NYLC/NYLE content outline · tap a subject to expand</div>
+  </header>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--done)"></span>drilled</span>
+    <span><span class="dot" style="background:var(--partial)"></span>lightly touched</span>
+    <span><span class="dot" style="background:var(--todo)"></span>not started</span>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="setAll(true)">Expand all</button>
+    <button class="ctrl-btn" onclick="setAll(false)">Collapse all</button>
+  </div>
+
+  <div id="map"></div>
+
+  <footer>
+    Topic branches = major headings from the BOLE outline (not every sub-point).<br>
+    Update status as subjects move through drilling — done → partial → todo, in reverse.
+  </footer>
+</div>
+
+<script>
+function render(){
+  const map = document.getElementById('map');
+  map.innerHTML = '';
+  SUBJECTS_STATUS.forEach((s, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'subj-card status-' + s.status;
+    card.id = 'card-' + idx;
+
+    const statusLabel = s.status === 'done' ? 'drilled' : (s.status === 'partial' ? 'lightly touched' : 'not started');
+
+    card.innerHTML = `
+      <div class="subj-head" onclick="toggle(${idx})">
+        <div class="subj-title-row">
+          <div class="subj-name">${s.name}</div>
+          <div class="subj-meta">
+            <span class="status-pill">${statusLabel}</span>
+            <span class="topic-count">${s.topics.length} topic branches</span>
+          </div>
+        </div>
+        <div class="chevron">›</div>
+      </div>
+      <div class="subj-body" id="body-${idx}">
+        <div class="topic-list">
+          ${s.topics.map(t => `<div class="topic-item"><span class="topic-marker">—</span><span class="topic-text">${t}</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+    map.appendChild(card);
+  });
+}
+
+function toggle(idx){
+  const card = document.getElementById('card-' + idx);
+  const body = document.getElementById('body-' + idx);
+  const isOpen = card.classList.contains('open');
+  if(isOpen){
+    card.classList.remove('open');
+    body.style.maxHeight = null;
+  } else {
+    card.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+  }
+}
+
+function setAll(open){
+  SUBJECTS_STATUS.forEach((s, idx)=>{
+    const card = document.getElementById('card-' + idx);
+    const body = document.getElementById('body-' + idx);
+    if(open){
+      card.classList.add('open');
+      body.style.maxHeight = body.scrollHeight + 'px';
+    } else {
+      card.classList.remove('open');
+      body.style.maxHeight = null;
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>

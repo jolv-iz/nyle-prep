@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYLE Prep — Study Hub</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">NYLE Prep · Static Study Hub</div>
+    <h1>New York Law Exam — Study Hub</h1>
+    <div class="sub">Exam date: September 25, 2026</div>
+  </header>
+
+  <p>This is a fixed snapshot of the study plan and reference materials — it won't change day to day. Use it as your always-available base; drilling and day-by-day scoring happen separately in conversation with Claude.</p>
+
+  <a class="card-link" href="plan.html">
+    <div class="card-title">📋 Master Study Plan</div>
+    <div class="card-desc">Diagnostic results, schedule, weighted daily drill allocation, error tracker</div>
+  </a>
+
+  <a class="card-link" href="topic-map.html">
+    <div class="card-title">🗺️ Full Topic Map</div>
+    <div class="card-desc">All 12 subjects, official BOLE outline branches, expandable — the bird's-eye view</div>
+  </a>
+
+  <a class="card-link" href="cplr-guide.html">
+    <div class="card-title">⚖️ CPLR Reference Guide</div>
+    <div class="card-desc">Trigger→answer index + full procedural timeline, built from diagnostic gaps</div>
+  </a>
+
+  <a class="card-link" href="quiz.html">
+    <div class="card-title">✍️ 50-Question Drill</div>
+    <div class="card-desc">Weighted mix across all 12 subjects, saves progress in this browser</div>
+  </a>
+
+  <div class="backup-box">
+    <div class="card-title">💾 Backup / Restore Progress</div>
+    <div class="card-desc">Quiz history lives only in this browser's storage. Export after each drilling session — clearing your cache, switching browsers, or moving devices otherwise loses everything.</div>
+    <div class="backup-row">
+      <button class="btn" onclick="exportProgress()">Export progress (.json)</button>
+      <button class="btn secondary" onclick="document.getElementById('import-file').click()">Import progress (.json)</button>
+      <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importProgress(event)">
+    </div>
+    <div id="backup-status"></div>
+  </div>
+
+  <footer class="note">
+    Built from Claude conversation on Aug 17–18, 2026.<br>
+    Quiz progress saves to this browser only (localStorage) — export regularly to avoid losing it.
+  </footer>
+</div>
+<script>
+function nyleKeys(){
+  return Object.keys(localStorage).filter(k => k.startsWith('nyle-'));
+}
+
+function exportProgress(){
+  const status = document.getElementById('backup-status');
+  const data = {};
+  nyleKeys().forEach(k => { data[k] = localStorage.getItem(k); });
+  if(Object.keys(data).length === 0){
+    status.textContent = 'Nothing to export yet — no drill progress saved in this browser.';
+    return;
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `nyle-progress-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  status.textContent = `Exported ${Object.keys(data).length} key(s) — save this file somewhere durable (e.g. the repo's data/ folder, or cloud storage).`;
+}
+
+function importProgress(event){
+  const status = document.getElementById('backup-status');
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      const keys = Object.keys(data).filter(k => k.startsWith('nyle-'));
+      if(keys.length === 0){
+        status.textContent = 'File has no nyle-* keys — nothing imported.';
+        return;
+      }
+      keys.forEach(k => localStorage.setItem(k, data[k]));
+      status.textContent = `Imported ${keys.length} key(s) — reload Study Plan or Drill to see it reflected.`;
+    }catch(e){
+      status.textContent = 'Could not parse that file as JSON export.';
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+</script>
+</body>
+</html>
