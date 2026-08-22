@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Master Study Plan</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
 <script src="data/subjects.js"></script>
 <script src="data/status.js"></script>
 </head>
@@ -16,6 +20,7 @@
     <a href="topic-map.html" >Topic Map</a>
     <a href="cplr-guide.html" >CPLR Guide</a>
     <a href="quiz.html" >Drill</a>
+    <a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;">Sign out</a>
   </div>
   <header class="masthead">
     <div class="eyebrow">NYLE Prep · Study Plan</div>

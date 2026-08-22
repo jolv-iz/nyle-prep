@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NYLE Prep — Study Hub</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -12,6 +16,7 @@
     <div class="eyebrow">NYLE Prep · Static Study Hub</div>
     <h1>New York Law Exam — Study Hub</h1>
     <div class="sub">Exam date: September 25, 2026</div>
+    <div class="sub" style="margin-top:8px;"><a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;" style="color:var(--muted);">Sign out</a></div>
   </header>
 
   <p>This is a fixed snapshot of the study plan and reference materials — it won't change day to day. Use it as your always-available base; drilling and day-by-day scoring happen separately in conversation with Claude.</p>

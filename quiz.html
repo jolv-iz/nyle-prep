@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NYLE Daily Drill</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
 <script src="data/manifest.js"></script>
 <script>
   // Pick which day's data file to load, before the rest of the page parses:
@@ -100,6 +104,7 @@
     <a href="topic-map.html">Topic Map</a>
     <a href="cplr-guide.html">CPLR Guide</a>
     <a href="quiz.html" class="active">Drill</a>
+    <a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;">Sign out</a>
   </div>
   <header class="masthead">
     <div class="eyebrow">NYLE Prep · Daily Drill</div>
@@ -115,7 +120,8 @@
     <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:2%"></div></div>
     <span id="score-live">0 correct</span>
   </div>
-  <div id="save-indicator" style="text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:14px;"></div>
+  <div id="save-indicator" style="text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:2px;"></div>
+  <div id="cloud-status" style="text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:14px;"></div>
 
   <div id="quiz-area"></div>
 
@@ -143,6 +149,27 @@ let userAnswers = new Array(QUESTIONS.length).fill(null);
 
 const PROGRESS_KEY = 'nyle-day' + CURRENT_DAY + '-progress';
 const HISTORY_KEY = 'nyle-daily-history';
+
+function setCloudStatus(text){
+  const el = document.getElementById('cloud-status');
+  if(el) el.textContent = text;
+}
+
+async function recordAttemptToCloud(index){
+  if(!supabaseClient) { setCloudStatus('(cloud sync not configured)'); return; }
+  const q = QUESTIONS[index];
+  const { error } = await supabaseClient.from('attempts').insert({
+    day: CURRENT_DAY,
+    question_index: index,
+    subject: q.subject,
+    topic: q.topic,
+    stem: q.stem,
+    choices: q.choices,
+    chosen_index: userAnswers[index],
+    correct_index: q.answer,
+  });
+  setCloudStatus(error ? ('⚠ cloud sync failed — ' + error.message) : '☁ synced');
+}
 
 function renderHeader(){
   document.getElementById('drill-title').textContent = DAY_META.label;
@@ -270,6 +297,8 @@ function selectAnswer(i){
   userAnswers[current] = i;
   renderQuestion();
   saveProgress();
+  setCloudStatus('☁ syncing…');
+  recordAttemptToCloud(current);
 }
 function nextQuestion(){
   if(current < QUESTIONS.length - 1){ current++; renderQuestion(); saveProgress(); }

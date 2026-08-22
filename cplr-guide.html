@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CPLR Reference Guide</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -14,6 +18,7 @@
     <a href="topic-map.html">Topic Map</a>
     <a href="cplr-guide.html" class="active">CPLR Guide</a>
     <a href="quiz.html">Drill</a>
+    <a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;">Sign out</a>
   </div>
   <header class="masthead">
     <div class="eyebrow">NYLE Prep · CPLR</div>

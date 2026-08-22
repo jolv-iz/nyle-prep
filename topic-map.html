@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NYLE Full Topic Map</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
 <script src="data/status.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -119,6 +123,7 @@
     <a href="topic-map.html" class="active">Topic Map</a>
     <a href="cplr-guide.html">CPLR Guide</a>
     <a href="quiz.html">Drill</a>
+    <a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;">Sign out</a>
   </div>
   
   <header>
