@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYLE Prep — Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="data/supabase-config.js"></script>
+<script src="data/supabase-client.js"></script>
+<script src="data/auth-gate.js"></script>
+<script src="data/status.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="topnav">
+    <a href="index.html">Home</a>
+    <a href="plan.html">Study Plan</a>
+    <a href="topic-map.html">Topic Map</a>
+    <a href="cplr-guide.html">CPLR Guide</a>
+    <a href="quiz.html">Drill</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="#" onclick="window.supabaseClient && window.supabaseClient.auth.signOut(); return false;">Sign out</a>
+  </div>
+  <header class="masthead">
+    <div class="eyebrow">NYLE Prep · Dashboard</div>
+    <h1>Progress Dashboard</h1>
+    <div class="sub">Every answer, synced from Supabase — not just day-level scores</div>
+  </header>
+
+  <div id="dash-content">
+    <div class="dash-loading">Loading attempts from Supabase…</div>
+  </div>
+
+  <footer class="note">Reads the same 'attempts' table quiz.html writes to. Refresh after a drill session to see it update.</footer>
+</div>
+
+<script>
+function pct(correct, total){ return total ? Math.round(correct / total * 100) : 0; }
+
+function statusClass(p){
+  if(p >= 80) return 'status-good';
+  if(p >= 60) return 'status-warn';
+  return 'status-bad';
+}
+
+function barRow(name, value, max, valueLabel, statusCls){
+  const width = max > 0 ? Math.max(2, Math.round(value / max * 100)) : 2;
+  return `
+    <div class="bar-row">
+      <div class="bar-name">${name}</div>
+      <div class="bar-track"><div class="bar-fill ${statusCls || ''}" style="width:${width}%"></div></div>
+      <div class="bar-value">${valueLabel}</div>
+    </div>`;
+}
+
+async function loadDashboard(){
+  const content = document.getElementById('dash-content');
+  if(!window.supabaseClient){
+    content.innerHTML = '<div class="dash-loading">Cloud sync not configured (missing Supabase keys).</div>';
+    return;
+  }
+
+  const { data: attempts, error } = await window.supabaseClient
+    .from('attempts')
+    .select('day,subject,topic,chosen_index,correct_index,is_correct,answered_at')
+    .order('answered_at', { ascending: true });
+
+  if(error){
+    content.innerHTML = `<div class="dash-loading">Could not load: ${error.message}</div>`;
+    return;
+  }
+
+  if(!attempts || attempts.length === 0){
+    content.innerHTML = '<div class="dash-loading">No attempts synced yet — answer some questions on the Drill page first.</div>';
+    return;
+  }
+
+  // ---- aggregate ----
+  const bySubject = {};
+  const byDay = {};
+  const byTopic = {};
+  attempts.forEach(a => {
+    if(!bySubject[a.subject]) bySubject[a.subject] = { attempted: 0, correct: 0 };
+    bySubject[a.subject].attempted++;
+    if(a.is_correct) bySubject[a.subject].correct++;
+
+    if(!byDay[a.day]) byDay[a.day] = { attempted: 0, correct: 0 };
+    byDay[a.day].attempted++;
+    if(a.is_correct) byDay[a.day].correct++;
+
+    const topicKey = a.subject + ' — ' + a.topic;
+    if(!byTopic[topicKey]) byTopic[topicKey] = { subject: a.subject, topic: a.topic, attempted: 0, correct: 0 };
+    byTopic[topicKey].attempted++;
+    if(a.is_correct) byTopic[topicKey].correct++;
+  });
+
+  const totalAttempted = attempts.length;
+  const totalCorrect = attempts.filter(a => a.is_correct).length;
+  const daysActive = Object.keys(byDay).length;
+  const branchesBySubject = {};
+  (typeof SUBJECTS_STATUS !== 'undefined' ? SUBJECTS_STATUS : []).forEach(s => { branchesBySubject[s.name] = s.topics.length; });
+  const totalBranches = Object.values(branchesBySubject).reduce((a, b) => a + b, 0);
+  const distinctTopicsCovered = new Set(Object.values(byTopic).map(t => t.subject + '|' + t.topic)).size;
+
+  // ---- render: summary stats ----
+  let html = `
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-num">${totalAttempted}</div><div class="stat-label">Questions Answered</div></div>
+      <div class="stat-tile"><div class="stat-num">${pct(totalCorrect, totalAttempted)}%</div><div class="stat-label">Overall Accuracy</div></div>
+      <div class="stat-tile"><div class="stat-num">${daysActive}</div><div class="stat-label">Days Drilled</div></div>
+      <div class="stat-tile"><div class="stat-num">${distinctTopicsCovered}/${totalBranches || '—'}</div><div class="stat-label">Branches Touched</div></div>
+    </div>`;
+
+  // ---- questions attempted by subject ----
+  const subjEntries = Object.entries(bySubject).sort((a, b) => b[1].attempted - a[1].attempted);
+  const maxAttempted = Math.max(...subjEntries.map(([, s]) => s.attempted));
+  html += `<h2>Questions Attempted by Subject</h2>`;
+  html += subjEntries.map(([name, s]) => barRow(name, s.attempted, maxAttempted, s.attempted)).join('');
+
+  // ---- accuracy by subject ----
+  html += `<h2>Accuracy by Subject</h2>`;
+  html += `
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:var(--done)"></span>&ge;80%</span>
+      <span><span class="legend-dot" style="background:var(--partial)"></span>60&ndash;79%</span>
+      <span><span class="legend-dot" style="background:var(--todo)"></span>&lt;60%</span>
+    </div>`;
+  const accEntries = Object.entries(bySubject).sort((a, b) => pct(a[1].correct, a[1].attempted) - pct(b[1].correct, b[1].attempted));
+  html += accEntries.map(([name, s]) => {
+    const p = pct(s.correct, s.attempted);
+    return barRow(name, p, 100, `${p}% (${s.correct}/${s.attempted})`, statusClass(p));
+  }).join('');
+
+  // ---- accuracy trend by day ----
+  const dayEntries = Object.entries(byDay).map(([d, s]) => [parseInt(d, 10), s]).sort((a, b) => a[0] - b[0]);
+  html += `<h2>Accuracy Trend by Day</h2>`;
+  html += dayEntries.map(([day, s]) => {
+    const p = pct(s.correct, s.attempted);
+    return barRow('Day ' + day, p, 100, `${p}% (${s.correct}/${s.attempted})`, statusClass(p));
+  }).join('');
+
+  // ---- weakest topics ----
+  const weakTopics = Object.values(byTopic)
+    .filter(t => t.attempted >= 1)
+    .map(t => ({ ...t, pct: pct(t.correct, t.attempted) }))
+    .sort((a, b) => a.pct - b.pct)
+    .slice(0, 10);
+  html += `<h2>Weakest Topics (lowest accuracy, min 1 attempt)</h2>`;
+  html += `
+    <table>
+      <thead><tr><th>Subject</th><th>Topic</th><th>Score</th><th>%</th></tr></thead>
+      <tbody>
+        ${weakTopics.map(t => `<tr><td>${t.subject}</td><td>${t.topic}</td><td>${t.correct}/${t.attempted}</td><td>${t.pct}%</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  content.innerHTML = html;
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
